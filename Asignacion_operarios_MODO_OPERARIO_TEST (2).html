@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asignación de operarios</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f6f4;--card:#fff;--ink:#1d1d1b;--mut:#6b6b66;--line:#d4d4cf;--acc:#2a6df4;--sel:#ffe9a8;--pick:#e8590c;--zone:#eef3ff;--pz:#fff1e8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161617;--card:#232325;--ink:#eee;--mut:#9a9a95;--line:#3a3a3d;--acc:#6b9bff;--sel:#5a4a14;--pick:#ff8c42;--zone:#1d2638;--pz:#3a2618}}
+:root[data-theme="dark"]{--bg:#161617;--card:#232325;--ink:#eee;--mut:#9a9a95;--line:#3a3a3d;--acc:#6b9bff;--sel:#5a4a14;--pick:#ff8c42;--zone:#1d2638;--pz:#3a2618}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding:12px;max-width:900px;margin:auto}
+h1{font-size:18px;margin:0 0 4px}h2{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);margin:14px 0 6px}
+p.h{margin:0 0 10px;color:var(--mut);font-size:13px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer}
+.pool{background:var(--card);border:2px dashed var(--line);border-radius:10px;padding:8px;min-height:52px}
+.pool b{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-block;border:1px solid var(--line);background:var(--bg);border-radius:16px;padding:3px 10px;font-size:13px;cursor:pointer;user-select:none}
+.chip i{font-style:normal;margin-left:2px;padding:0 5px;border-radius:8px;cursor:pointer;font-weight:700}.chip i:hover{background:var(--line)}
+.chip.sel{background:var(--sel);border-color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.grid.p{grid-template-columns:repeat(4,1fr)}
+.z{background:var(--zone);border:1.5px solid var(--acc);border-radius:10px;padding:8px;cursor:pointer;min-height:90px}
+.grid.p .z{background:var(--pz);border-color:var(--pick)}.pickerZone{background:#eff9f1;border-color:#237747}.grid.p .pickerZone{background:#eff9f1;border-color:#237747}
+.z h3{margin:0 0 6px;font-size:13px}
+.z small{color:var(--mut);font-weight:400}
+.sum{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;overflow-x:auto}
+details{margin:8px 0}summary{cursor:pointer;font-size:13px}
+.names{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;margin-top:6px}
+.names input{font:inherit;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);width:100%}
+.chip.c0{background:#8a8a85;border-color:#8a8a85;color:#fff}.chip.c1{background:#e8590c;border-color:#e8590c;color:#fff}.chip.c2{background:#d62828;border-color:#d62828;color:#fff}.chip.sel{outline:3px solid var(--acc);outline-offset:1px}
+.card.c0{border-left:8px solid #8a8a85}.card.c1{border-left:8px solid #e8590c}.card.c2{border-left:8px solid #d62828}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.card{border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg)}.card h4{margin:0 0 4px;font-size:17px;letter-spacing:.03em}.ln{font-size:14px;padding:2px 0;font-weight:600}.ln span{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--acc);margin-right:4px}
+@media print{body>*:not(.sum){display:none!important}.sum{border:0}}
+.bar{display:flex;gap:8px;margin-top:10px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.grid.p{grid-template-columns:repeat(2,1fr)}}
+</style></head><body>
+<h1>Asignación de operarios</h1>
+<p class="h">Arrastra un operario a cada tarea que tenga. Si lo sueltas en varias zonas, las hará en ese orden (1ª, 2ª…). Con la × lo quitas de una tarea. En móvil: toca el nombre y luego el recuadro.</p><div id="syncbar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:8px 0;padding:7px 9px;background:var(--card);border:1px solid var(--line);border-radius:9px;font-size:12px;color:var(--mut)"><span id="syncstatus">🟡 Comprobando conexión…</span><span id="diagstatus" style="font-size:11px"></span><button id="workerMode">📱 Modo operario</button></div>
+<div id="diagnosticBox" style="margin:6px 0"><div style="font-weight:600;margin-bottom:4px">🔎 Diagnóstico de conexión</div><div id="diagnosticDetails" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:5px;color:var(--ink)">Comprobando conexión con Supabase…</div></div>
+<details><summary>Editar nombres de los 10 operarios</summary><div class="names" id="names"></div></details>
+<details><summary>Gestionar tareas (añadir o cambiar nombres)</summary><p class="h">Las cuatro categorías son fijas. Puedes renombrar o añadir tareas; los cambios se guardan en Supabase.</p><div id="taskManager"></div></details>
+<div class="pool" id="pool"></div>
+<div id="taskCategories"></div>
+<div class="bar"><button id="clr">Vaciar todo</button><button id="cp">Copiar resumen</button><button id="pr">Imprimir hoja</button></div>
+<div class="sum" id="sum"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =========================================================
+   ASIGNACIÓN DE OPERARIOS - VERSIÓN SINCRONIZADA
+   Mantiene la interfaz del artefacto original.
+   ========================================================= */
+
+var SUPABASE_URL="https://ggtbvidgbylfxgciqdhu.supabase.co";
+var SUPABASE_KEY="sb_publishable_oggYiHqBAJJoLh8VrnB8zQ_9clxnHQ0";
+var db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+var CATEGORIES=[
+ {name:"Packer",color:"#2862A5",bg:"#E7F0FC",icon:"📦"},
+ {name:"Picker",color:"#237747",bg:"#E5F5EA",icon:"🛒"},
+ {name:"Carga y Descarga",color:"#A95413",bg:"#FFF0E2",icon:"🚚"},
+ {name:"Etiquetado",color:"#7840A0",bg:"#F2E8FB",icon:"🏷️"}
+];
+var Z=[];
+var ZN={};
+function inferCategory(name){
+ var n=String(name||"").toUpperCase();
+ if(n.indexOf("PICKER")>=0)return "Picker";
+ if(n.indexOf("ETIQU")>=0||n.indexOf("REETIQU")>=0)return "Etiquetado";
+ if(n.indexOf("CARGA")>=0||n.indexOf("DESCARGA")>=0||n.indexOf("RECEPCIÓN")>=0||n.indexOf("RECEPCION")>=0||n.indexOf("CONTENEDOR")>=0)return "Carga y Descarga";
+ return "Packer";
+}
+function refreshTaskList(tasks){
+ Z=(tasks||[]).map(function(t){return {id:"task-"+t.id,dbId:t.id,n:t.nombre,g:inferCategory(t.nombre),categoria:t.categoria||inferCategory(t.nombre)};});
+ Z.forEach(function(z){z.g=z.categoria==="Picker"?"p":z.categoria==="Packer"?"z":"x";ZN[z.id]=z.n;});
+}
+
+var DEFAULT_OPS=[
+  {id:"local-konte",n:"KONTE",t:[]},
+  {id:"local-guada",n:"GUADA",t:[]},
+  {id:"local-cristian",n:"CRISTIAN",t:[]},
+  {id:"local-javi",n:"JAVI",t:[]},
+  {id:"local-ale",n:"ALE",t:[]},
+  {id:"local-edsson",n:"EDSSON",t:[]},
+  {id:"local-pau",n:"PAU",t:[]},
+  {id:"local-pol",n:"POL",t:[]},
+  {id:"local-gerard",n:"GERARD",t:[]},
+  {id:"local-robert",n:"ROBERT",t:[]}
+];
+var DEFAULT_TASKS=[
+ {id:"local-task-0",nombre:"PREPARACIÓN MASIVOS MUELLE 2",categoria:"Packer"},
+ {id:"local-task-1",nombre:"PREPARACIÓN MASIVOS ALTILLO",categoria:"Packer"},
+ {id:"local-task-2",nombre:"PREPARACIÓN PEDIDOS NORMALES",categoria:"Packer"},
+ {id:"local-task-3",nombre:"PREPARACIÓN PLATAFORMA VALENCIA",categoria:"Packer"},
+ {id:"local-task-4",nombre:"PICKER 1",categoria:"Picker"},
+ {id:"local-task-5",nombre:"PICKER 2",categoria:"Picker"},
+ {id:"local-task-6",nombre:"PICKER 3",categoria:"Picker"},
+ {id:"local-task-7",nombre:"PICKER 4",categoria:"Picker"},
+ {id:"local-task-8",nombre:"ETIQUETAR",categoria:"Etiquetado"},
+ {id:"local-task-9",nombre:"CARGA TRANSPORTE",categoria:"Carga y Descarga"}
+];
+var S={ops:JSON.parse(JSON.stringify(DEFAULT_OPS)),sel:null,ready:true};
+var workerMode=false;
+
+function setStatus(txt,ok){
+  var el=document.getElementById("syncstatus");
+  if(el){el.textContent=txt;el.style.color=ok?"#087443":"#9a3412";}
+}
+
+function safeName(x){return String(x||"").replace(/[&<>"']/g,function(m){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m];
+});}
+
+function dbTaskId(localId){
+  var z=Z.find(function(x){return x.id===localId;});
+  return z?z.dbId:null;
+}
+function localTaskId(dbId){
+  var t=(window._dbTasks||DEFAULT_TASKS).find(function(x){return String(x.id)===String(dbId);});
+  return t?"task-"+t.id:null;
+}
+
+function buildState(ops,tasks,assignments){
+  window._dbOps=ops||[];
+  window._dbTasks=tasks||[];
+  window._dbAssignments=assignments||[];
+  refreshTaskList(window._dbTasks);
+
+  S.ops=window._dbOps.map(function(op){
+    var mine=window._dbAssignments
+      .filter(function(a){return a.operario_id===op.id && a.estado!=="CANCELADA" && a.estado!=="TERMINADA"})
+      .sort(function(a,b){return new Date(a.hora_asignacion)-new Date(b.hora_asignacion)});
+
+    return {
+      id:op.id,
+      n:op.nombre,
+      t:mine.map(function(a){return localTaskId(a.tarea_id)}).filter(Boolean)
+    };
+  });
+  S.sel=null;
+  S.ready=true;
+}
+
+async function loadFromDB(){
+  setStatus("🟡 Comprobando conexión con Supabase…",false);
+  showDiag("Comprobando las 3 tablas…", "pending");
+
+  var names=["operarios","tareas","asignaciones"];
+  var checks=[];
+
+  for(var i=0;i<names.length;i++){
+    var table=names[i];
+    try{
+      var started=Date.now();
+      var r=await db.from(table).select("*").limit(1);
+      var ms=Date.now()-started;
+      if(r.error){
+        checks.push({table:table,ok:false,detail:formatDbError(r.error),ms:ms});
+      }else{
+        checks.push({table:table,ok:true,detail:"Lectura correcta",ms:ms});
+      }
+    }catch(e){
+      checks.push({table:table,ok:false,detail:"Error del navegador: "+(e&&e.message?e.message:String(e)),ms:null});
+    }
+  }
+
+  renderDiagnostics(checks);
+
+  var bad=checks.filter(function(x){return !x.ok});
+  if(bad.length){
+    setStatus("🔴 Hay un problema de conexión/permisos",false);
+    console.error("Diagnóstico Supabase:",checks);
+    // Keep the original interface visible while we diagnose the connection.
+    window._dbOps=DEFAULT_OPS;
+    window._dbTasks=DEFAULT_TASKS;
+    refreshTaskList(window._dbTasks);
+    window._dbAssignments=[];
+    S.ops=JSON.parse(JSON.stringify(DEFAULT_OPS));
+    S.ready=true;
+    R();
+    return;
+  }
+
+  var results=await Promise.all([
+    db.from("operarios").select("*").order("id"),
+    db.from("tareas").select("*").order("id"),
+    db.from("asignaciones").select("*").order("created_at",{ascending:true})
+  ]);
+
+  var eo=results[0].error, et=results[1].error, ea=results[2].error;
+  if(eo||et||ea){
+    var details=[];
+    if(eo)details.push("operarios: "+formatDbError(eo));
+    if(et)details.push("tareas: "+formatDbError(et));
+    if(ea)details.push("asignaciones: "+formatDbError(ea));
+    setStatus("🔴 Error leyendo los datos",false);
+    showDiag(details.join(" | "),"bad");
+    console.error(eo||et||ea);
+    window._dbOps=DEFAULT_OPS;
+    window._dbTasks=DEFAULT_TASKS;
+    refreshTaskList(window._dbTasks);
+    window._dbAssignments=[];
+    S.ops=JSON.parse(JSON.stringify(DEFAULT_OPS));
+    S.ready=true;
+    R();
+    return;
+  }
+
+  // If a query succeeds but RLS/filters leave an empty list, keep the board visible
+  // with the known starter roster/tasks so the user is not greeted by a blank page.
+  var dbOps=results[0].data||[];
+  var dbTasks=results[1].data||[];
+  var dbAssignments=results[2].data||[];
+  var usingLocalOps=dbOps.length===0;
+  var usingLocalTasks=dbTasks.length===0;
+  if(usingLocalOps) dbOps=DEFAULT_OPS.map(function(o){return {id:o.id,nombre:o.n,activo:true};});
+  if(usingLocalTasks) dbTasks=DEFAULT_TASKS.slice();
+  buildState(dbOps,dbTasks,dbAssignments);
+  if(usingLocalOps||usingLocalTasks){
+    setStatus("🟡 Vista de prueba: faltan datos en Supabase",false);
+    showDiag((usingLocalOps?"No se encontraron operarios en la tabla; se muestran nombres de prueba. ":"")+(usingLocalTasks?"No se encontraron tareas en la tabla; se muestran tareas de prueba.":""),"bad");
+  }else{
+    setStatus("🟢 Sincronizado con Supabase",true);
+    showDiag("Conexión + lectura de las 3 tablas correctas","ok");
+  }
+  R();
+}
+
+function formatDbError(e){
+  if(!e)return "Sin error";
+  var parts=[];
+  if(e.message)parts.push(e.message);
+  if(e.code)parts.push("Código "+e.code);
+  if(e.details)parts.push(e.details);
+  if(e.hint)parts.push("Ayuda: "+e.hint);
+  return parts.join(" · ");
+}
+
+function showDiag(msg,state){
+  var el=document.getElementById("diagstatus");
+  if(!el)return;
+  el.textContent=msg||"";
+  el.style.color=state==="ok"?"#087443":state==="bad"?"#b42318":"#9a3412";
+}
+
+function renderDiagnostics(checks){
+  var el=document.getElementById("diagnosticDetails");
+  if(!el)return;
+  el.innerHTML="";
+  checks.forEach(function(c){
+    var row=document.createElement("div");
+    row.style.cssText="padding:6px 0;border-top:1px solid var(--line);font-size:12px";
+    row.innerHTML=(c.ok?"🟢 ":"🔴 ")+"<b>"+safeName(c.table)+"</b> — "+safeName(c.detail)+(c.ms!=null?" ("+c.ms+" ms)":"");
+    el.appendChild(row);
+  });
+}
+async function add(i,id){
+  if(!S.ready)return;
+  var dbTask=dbTaskId(id);
+  var op=S.ops[i];
+  if(!op||!dbTask)return;
+  if(String(op.id).indexOf("local-")===0 || String(dbTask).indexOf("local-")===0){
+    // Temporary local test mode: assignments are displayed locally.
+    if(op.t.indexOf(id)<0) op.t.push(id);
+    S.sel=null;
+    R();
+    setStatus("🟡 Modo local · Supabase aún no conectado",false);
+    return;
+  }
+
+  if(op.t.indexOf(id)>=0){
+    S.sel=null;
+    R();
+    return;
+  }
+
+  var existing=window._dbAssignments.find(function(a){
+    return a.operario_id===op.id &&
+           a.tarea_id===dbTask &&
+           a.estado!=="CANCELADA" &&
+           a.estado!=="TERMINADA";
+  });
+
+  if(existing){
+    S.sel=null;
+    R();
+    return;
+  }
+
+  var r=await db.from("asignaciones").insert({
+    operario_id:op.id,
+    tarea_id:dbTask,
+    estado:"ASIGNADA"
+  });
+
+  if(r.error){
+    alert("No se ha podido asignar la tarea.\n\n"+r.error.message);
+    return;
+  }
+
+  S.sel=null;
+  await loadFromDB();
+}
+
+async function removeAssignment(opIndex,id){
+  var op=S.ops[opIndex];
+  var taskId=dbTaskId(id);
+  if(!op||!taskId)return;
+
+  var active=window._dbAssignments.find(function(a){
+    return a.operario_id===op.id &&
+           a.tarea_id===taskId &&
+           a.estado!=="CANCELADA" &&
+           a.estado!=="TERMINADA";
+  });
+
+  if(active){
+    var r=await db.from("asignaciones").update({estado:"CANCELADA"}).eq("id",active.id);
+    if(r.error){alert(r.error.message);return;}
+  }
+  await loadFromDB();
+}
+
+function chip(o,i){
+  var c=document.createElement("span");
+  c.className="chip "+(o.t.length>1?"c2":o.t.length?"c1":"c0")+(S.sel===i?" sel":"");
+  c.textContent=o.n+(o.t.length?" ("+o.t.length+")":"");
+  c.draggable=true;
+
+  c.ondragstart=function(e){
+    S.sel=null;
+    try{
+      e.dataTransfer.setData("text/plain",String(i));
+      e.dataTransfer.effectAllowed="copyMove";
+    }catch(x){}
+    window._d=i;
+  };
+
+  c.onclick=function(e){
+    e.stopPropagation();
+    S.sel=S.sel===i?null:i;
+    R();
+  };
+  return c;
+}
+
+function zchip(o,i,id){
+  var c=document.createElement("span");
+  c.className="chip";
+  var k=o.t.indexOf(id);
+  c.textContent=(o.t.length>1?(k+1)+"ª ":"")+o.n+" ";
+
+  var x=document.createElement("i");
+  x.textContent="×";
+  x.title="Quitar de esta tarea";
+  x.onclick=function(e){
+    e.stopPropagation();
+    removeAssignment(i,id);
+  };
+
+  c.appendChild(x);
+  c.onclick=function(e){e.stopPropagation()};
+  return c;
+}
+
+function dz(el,fn){
+  el.ondragover=function(e){
+    e.preventDefault();
+    el.style.outline="2px solid var(--acc)";
+  };
+  el.ondragleave=function(){el.style.outline=""};
+  el.ondrop=function(e){
+    e.preventDefault();
+    el.style.outline="";
+    var i=window._d;
+    if(i!=null&&S.ops[i]){
+      window._d=null;
+      fn(i);
+    }
+  };
+}
+
+function zone(z){
+  var d=document.createElement("div");
+  d.className="z"+(z.categoria==="Picker"?" pickerZone":"");
+
+  var h=document.createElement("h3");
+  h.textContent=z.n;
+  d.appendChild(h);
+
+  var w=document.createElement("div");
+  w.className="chips";
+  var n=0;
+
+  S.ops.forEach(function(o,i){
+    if(o.t.indexOf(z.id)>=0){
+      w.appendChild(zchip(o,i,z.id));
+      n++;
+    }
+  });
+
+  if(z.g!="p"){
+    var sm=document.createElement("small");
+    sm.textContent=" ("+n+")";
+    h.appendChild(sm);
+  }
+
+  d.appendChild(w);
+  dz(d,function(i){add(i,z.id)});
+
+  d.onclick=function(){
+    if(S.sel!==null)add(S.sel,z.id);
+  };
+
+  return d;
+}
+
+function R(){
+  if(!S.ready)return;
+
+  var p=document.getElementById("pool");
+  p.innerHTML="<b>Operarios · arrastra o toca cada uno para añadirle tareas (gris: sin tareas · naranja: 1 tarea · rojo: 2 o más). Suéltalo aquí para quitarle todas.</b>";
+
+  var w=document.createElement("div");
+  w.className="chips";
+  S.ops.forEach(function(o,i){w.appendChild(chip(o,i))});
+  p.appendChild(w);
+
+  dz(p,async function(i){
+    var op=S.ops[i];
+    var ids=window._dbAssignments.filter(function(a){
+      return a.operario_id===op.id && a.estado!=="CANCELADA" && a.estado!=="TERMINADA";
+    }).map(function(a){return a.id});
+
+    if(ids.length){
+      var r=await db.from("asignaciones").update({estado:"CANCELADA"}).in("id",ids);
+      if(r.error){alert(r.error.message);return;}
+    }
+    await loadFromDB();
+  });
+
+  var cats=document.getElementById("taskCategories");
+  cats.innerHTML="";
+  CATEGORIES.forEach(function(cat){
+    var section=document.createElement("section");
+    section.style.cssText="margin:14px 0 18px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--card)";
+    var head=document.createElement("div");
+    head.style.cssText="padding:10px 12px;background:"+cat.bg+";color:"+cat.color+";font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center";
+    var list=Z.filter(function(z){return z.categoria===cat.name;});
+    head.innerHTML="<span>"+cat.icon+" "+safeName(cat.name)+" <small style='font-weight:500'>("+list.length+" tareas)</small></span><span>⌄</span>";
+    var body=document.createElement("div");body.style.cssText="padding:9px;";
+    var grid=document.createElement("div");grid.className="grid"+(cat.name==="Picker"?" p":"");
+    list.forEach(function(z){grid.appendChild(zone(z));});
+    body.appendChild(grid);
+    head.onclick=function(){body.style.display=body.style.display==="none"?"block":"none";};
+    section.appendChild(head);section.appendChild(body);cats.appendChild(section);
+  });
+  renderTaskManager();
+
+  function fmtTime(value){
+    if(!value) return "Pendiente";
+    var d=new Date(value);
+    return isNaN(d.getTime()) ? "—" : d.toLocaleString("es-ES",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  }
+  var t="<div class='cards'>"+S.ops.map(function(o){
+    var active=window._dbAssignments.filter(function(a){
+      return a.operario_id===o.id && a.estado!=="CANCELADA" && a.estado!=="TERMINADA";
+    }).sort(function(a,b){return new Date(a.created_at)-new Date(b.created_at);});
+    var l=active.length
+      ?active.map(function(a,k){
+        var task=window._dbTasks.find(function(x){return x.id===a.tarea_id;});
+        var status=a.estado==="EN_CURSO" ? "🟢 Tarea iniciada" : "🕓 Tarea asignada";
+        return "<div class='ln' style='margin-top:7px'><b>"+(k+1)+". "+safeName(task?task.nombre:"Tarea")+"</b><br>"+status+
+          (a.hora_inicio?"<br><small>Inicio: "+fmtTime(a.hora_inicio)+"</small>":"")+
+          (a.hora_fin?"<br><small>Fin: "+fmtTime(a.hora_fin)+"</small>":"")+"</div>";
+      }).join("")
+      :"<div class='ln' style='color:var(--mut)'>Sin tareas asignadas</div>";
+    return "<div class='card "+(active.length>1?"c2":active.length?"c1":"c0")+"'><h4>"+safeName(o.n)+"</h4>"+l+"</div>";
+  }).join("")+"</div>";
+
+  t+="<p style='margin:8px 0 0;color:var(--mut)'>Sin tareas: "+S.ops.filter(function(o){
+    return !window._dbAssignments.some(function(a){return a.operario_id===o.id && a.estado!=="CANCELADA" && a.estado!=="TERMINADA";});
+  }).length+" de "+S.ops.length+"</p>";
+
+  var history=window._dbAssignments.slice().sort(function(a,b){
+    return new Date(b.created_at||b.hora_asignacion)-new Date(a.created_at||a.hora_asignacion);
+  });
+  t+="<h3 style='margin-top:22px'>Registro de tareas e histórico</h3>";
+  t+="<div style='overflow-x:auto'><table style='width:100%;border-collapse:collapse;font-size:13px'><thead><tr><th style='text-align:left;padding:7px;border-bottom:1px solid var(--line)'>Operario</th><th style='text-align:left;padding:7px;border-bottom:1px solid var(--line)'>Tarea</th><th style='text-align:left;padding:7px;border-bottom:1px solid var(--line)'>Estado</th><th style='text-align:left;padding:7px;border-bottom:1px solid var(--line)'>Inicio</th><th style='text-align:left;padding:7px;border-bottom:1px solid var(--line)'>Finalización</th></tr></thead><tbody>";
+  t+=history.map(function(a){
+    var op=window._dbOps.find(function(x){return x.id===a.operario_id;});
+    var task=window._dbTasks.find(function(x){return x.id===a.tarea_id;});
+    var status=a.estado==="EN_CURSO"?"Tarea iniciada":a.estado==="TERMINADA"?"Tarea finalizada":a.estado==="CANCELADA"?"Cancelada":"Asignada";
+    return "<tr><td style='padding:7px;border-bottom:1px solid var(--line)'>"+safeName(op?op.nombre:"—")+"</td><td style='padding:7px;border-bottom:1px solid var(--line)'>"+safeName(task?task.nombre:"—")+"</td><td style='padding:7px;border-bottom:1px solid var(--line)'>"+status+"</td><td style='padding:7px;border-bottom:1px solid var(--line)'>"+(a.hora_inicio?fmtTime(a.hora_inicio):"—")+"</td><td style='padding:7px;border-bottom:1px solid var(--line)'>"+(a.hora_fin?fmtTime(a.hora_fin):"—")+"</td></tr>";
+  }).join("");
+  t+="</tbody></table></div>";
+  document.getElementById("sum").innerHTML=t;
+
+  renderNames();
+}
+
+async function renameTask(taskId,input){
+ var name=input.value.trim();if(!name){alert("Escribe un nombre para la tarea.");return;}
+ var r=await db.from("tareas").update({nombre:name}).eq("id",taskId);
+ if(r.error){alert("No se pudo cambiar el nombre.\n\nError de Supabase: "+r.error.message+(r.error.code?"\nCódigo: "+r.error.code:"")+(r.error.message&&/categoria|column/i.test(r.error.message)?"\n\nComprueba que ejecutaste CONFIGURAR_CATEGORIAS_TAREAS.sql.":""));return;}
+ await loadFromDB();
+}
+async function deleteTask(taskId, taskName){
+ if(!confirm('¿Seguro que quieres eliminar la tarea "'+taskName+'"? Esta acción no se puede deshacer.'))return;
+ var r=await db.from("tareas").delete().eq("id",taskId);
+ if(r.error){
+  var msg="No se pudo eliminar la tarea.\n\nError de Supabase: "+r.error.message+(r.error.code?"\nCódigo: "+r.error.code:"");
+  if(/foreign key|constraint|referenced|violates/i.test(r.error.message||""))msg+="\n\nEsta tarea está vinculada a asignaciones o al histórico. Para conservar el registro, no se ha eliminado.";
+  alert(msg);return;
+ }
+ await loadFromDB();
+}
+async function createTask(category,input){
+ var name=input.value.trim();if(!name){alert("Escribe un nombre para la nueva tarea.");return;}
+ var r=await db.from("tareas").insert({nombre:name,estado:"PENDIENTE",categoria:category}).select();
+ if(r.error){alert("No se pudo crear la tarea.\n\nError de Supabase: "+r.error.message+(r.error.code?"\nCódigo: "+r.error.code:"")+(r.error.message&&/categoria|column/i.test(r.error.message)?"\n\nComprueba que ejecutaste CONFIGURAR_CATEGORIAS_TAREAS.sql.":""));return;}
+ await loadFromDB();
+}
+function renderTaskManager(){
+ var root=document.getElementById("taskManager");if(!root)return;root.innerHTML="";
+ CATEGORIES.forEach(function(cat){
+  var box=document.createElement("div");box.style.cssText="border:1px solid var(--line);border-radius:9px;padding:9px;margin:8px 0";
+  var h=document.createElement("b");h.textContent=cat.icon+" "+cat.name;h.style.color=cat.color;box.appendChild(h);
+  Z.filter(function(z){return z.categoria===cat.name;}).forEach(function(z){
+   var row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-top:7px";
+   var inp=document.createElement("input");inp.value=z.n;inp.setAttribute("aria-label","Nombre de tarea");inp.style.cssText="min-width:0;flex:1;padding:7px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)";
+   var btn=document.createElement("button");btn.textContent="Guardar";btn.onclick=function(){renameTask(z.dbId,inp);};
+   var delBtn=document.createElement("button");delBtn.textContent="Eliminar";delBtn.style.cssText="background:#b42318;color:white;border:1px solid #b42318";delBtn.onclick=function(){deleteTask(z.dbId,z.n);};
+   row.appendChild(inp);row.appendChild(btn);row.appendChild(delBtn);box.appendChild(row);
+  });
+  var addrow=document.createElement("div");addrow.style.cssText="display:flex;gap:6px;margin-top:9px";
+  var newInput=document.createElement("input");newInput.placeholder="Nueva tarea…";newInput.style.cssText="min-width:0;flex:1;padding:7px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)";
+  var addBtn=document.createElement("button");addBtn.textContent="+ Añadir";addBtn.onclick=function(){createTask(cat.name,newInput);};
+  addrow.appendChild(newInput);addrow.appendChild(addBtn);box.appendChild(addrow);root.appendChild(box);
+ });
+}
+
+function renderNames(){
+  var N=document.getElementById("names");
+  N.innerHTML="";
+  S.ops.forEach(function(o){
+    var x=document.createElement("input");
+    x.value=o.n;
+    x.onchange=async function(){
+      var nombre=x.value.trim()||"–";
+      var r=await db.from("operarios").update({nombre:nombre}).eq("id",o.id);
+      if(r.error)alert(r.error.message);
+      else await loadFromDB();
+    };
+    N.appendChild(x);
+  });
+}
+
+/* Modo operario: mantiene el mismo archivo, pero ofrece una pantalla
+   sencilla para que el trabajador inicie/finalice su tarea. */
+function openWorkerMode(){
+  workerMode=true;
+
+  var original=document.body.innerHTML;
+  window._originalBody=original;
+
+  document.body.innerHTML=
+    '<div style="max-width:520px;margin:auto">'+
+      '<h1>📱 Tareas del operario</h1>'+
+      '<p class="h">Selecciona el operario para esta prueba y controla sus tareas.</p>'+
+      '<div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin:10px 0">'+
+        '<select id="workerSelect" style="width:100%;font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)"></select>'+
+      '</div>'+
+      '<div id="workerTasks"></div>'+
+      '<p style="font-size:12px;color:var(--mut);margin-top:14px">Modo de prueba: el panel de Supervisor permanece oculto en esta pantalla.</p>'+
+      '<button id="supervisorReturn" style="margin-top:10px;width:100%;padding:10px">🔑 Volver al panel de Supervisor</button>'+
+    '</div>';
+
+  document.getElementById('supervisorReturn').onclick=function(){
+    if(!confirm('¿Volver al panel de Supervisor? Esta versión es solo de prueba y no tiene contraseña.'))return;
+    document.body.innerHTML=window._originalBody;
+    workerMode=false;
+    bindAfterRestore();
+    loadFromDB();
+  };
+
+  var ws=document.getElementById("workerSelect");
+  S.ops.forEach(function(o){
+    var op=document.createElement("option");
+    op.value=o.id;
+    op.textContent=o.n;
+    ws.appendChild(op);
+  });
+
+  ws.onchange=renderWorker;
+  renderWorker();
+}
+
+function bindAfterRestore(){
+  document.getElementById("workerMode").onclick=openWorkerMode;
+  document.getElementById("clr").onclick=clearAll;
+  document.getElementById("cp").onclick=copySummary;
+  document.getElementById("pr").onclick=function(){window.print()};
+}
+
+async function renderWorker(){
+  var ws=document.getElementById("workerSelect");
+  var box=document.getElementById("workerTasks");
+  if(!ws||!box)return;
+
+  var opId=Number(ws.value);
+  var op=S.ops.find(function(x){return x.id===opId});
+  if(!op){box.innerHTML="";return;}
+
+  var rows=window._dbAssignments.filter(function(a){
+    return a.operario_id===opId && a.estado!=="CANCELADA" && a.estado!=="TERMINADA";
+  });
+
+  box.innerHTML=rows.map(function(a){
+    var t=window._dbTasks.find(function(x){return x.id===a.tarea_id});
+    if(!t)return "";
+
+    if(a.estado==="TERMINADA"){
+      return '<div class="card c0" style="margin-top:8px">'+
+        '<h4>✅ '+safeName(t.nombre)+'</h4>'+
+        '<div class="ln">Tarea terminada</div>'+
+        '<div style="color:var(--mut);font-size:12px">Inicio: '+new Date(a.hora_inicio).toLocaleString("es-ES")+
+        '<br>Fin: '+new Date(a.hora_fin).toLocaleString("es-ES")+'</div>'+
+      '</div>';
+    }
+
+    if(a.estado==="EN_CURSO"){
+      return '<div class="card c1" style="margin-top:8px">'+
+        '<h4>🟢 '+safeName(t.nombre)+'</h4>'+
+        '<div class="ln">Tarea en curso</div>'+
+        '<button style="margin-top:7px;width:100%;padding:12px;background:#e8590c;color:white;border-color:#e8590c" onclick="finishWorkerTask('+a.id+')">✅ FINALIZAR TAREA</button>'+
+      '</div>';
+    }
+
+    return '<div class="card c0" style="margin-top:8px">'+
+      '<h4>📦 '+safeName(t.nombre)+'</h4>'+
+      '<div class="ln">Tarea pendiente</div>'+
+      '<button style="margin-top:7px;width:100%;padding:12px;background:#2a6df4;color:white;border-color:#2a6df4" onclick="startWorkerTask('+a.id+')">▶ INICIAR TAREA</button>'+
+    '</div>';
+  }).join("") || '<div class="card" style="margin-top:8px"><h4>👌 Sin tareas asignadas</h4></div>';
+}
+
+async function startWorkerTask(id){
+  var now=new Date().toISOString();
+  var r=await db.from("asignaciones").update({
+    estado:"EN_CURSO",
+    hora_inicio:now
+  }).eq("id",id);
+
+  if(r.error){alert("No se ha podido iniciar la tarea.\\n\\n"+r.error.message);return;}
+
+  /* Actualización inmediata en pantalla para no depender del refresco */
+  var a=window._dbAssignments.find(function(x){return x.id===id});
+  if(a){a.estado="EN_CURSO";a.hora_inicio=now;}
+  if(a){
+    var tr=await db.from("tareas").update({estado:"EN_CURSO"}).eq("id",a.tarea_id);
+    if(tr.error)console.warn("No se pudo actualizar el estado general de la tarea:",tr.error.message);
+  }
+  if(workerMode)renderWorker();
+  await loadFromDB();
+  if(workerMode)renderWorker();
+}
+
+async function finishWorkerTask(id){
+  var a=window._dbAssignments.find(function(x){return x.id===id});
+  var now=new Date().toISOString();
+  var r=await db.from("asignaciones").update({
+    estado:"TERMINADA",
+    hora_fin:now
+  }).eq("id",id);
+
+  if(r.error){alert("No se ha podido finalizar la tarea.\\n\\n"+r.error.message);return;}
+
+  if(a){a.estado="TERMINADA";a.hora_fin=now;}
+  if(a){
+    var tr=await db.from("tareas").update({estado:"TERMINADA"}).eq("id",a.tarea_id);
+    if(tr.error)console.warn("No se pudo actualizar el estado general de la tarea:",tr.error.message);
+  }
+  if(workerMode)renderWorker();
+  await loadFromDB();
+  if(workerMode)renderWorker();
+}
+
+async function clearAll(){
+  if(!confirm("¿Vaciar todas las asignaciones activas?"))return;
+
+  var ids=window._dbAssignments.filter(function(a){
+    return a.estado!=="CANCELADA"&&a.estado!=="TERMINADA";
+  }).map(function(a){return a.id});
+
+  if(ids.length){
+    var r=await db.from("asignaciones").update({estado:"CANCELADA"}).in("id",ids);
+    if(r.error){alert(r.error.message);return;}
+  }
+  await loadFromDB();
+}
+
+async function copySummary(){
+  try{
+    await navigator.clipboard.writeText(document.getElementById("sum").innerText);
+  }catch(e){
+    alert("No se ha podido copiar el resumen.");
+  }
+}
+
+document.getElementById("workerMode").onclick=openWorkerMode;
+document.getElementById("clr").onclick=clearAll;
+document.getElementById("cp").onclick=copySummary;
+document.getElementById("pr").onclick=function(){window.print()};
+
+/* Sincronización en tiempo real */
+db.channel("asignacion-operarios-live")
+  .on("postgres_changes",{event:"*",schema:"public",table:"operarios"},function(){loadFromDB()})
+  .on("postgres_changes",{event:"*",schema:"public",table:"tareas"},function(){loadFromDB()})
+  .on("postgres_changes",{event:"*",schema:"public",table:"asignaciones"},function(){loadFromDB()})
+  .subscribe(function(status){
+    if(status==="SUBSCRIBED")setStatus("🟢 Conectado · sincronización activa",true);
+  });
+
+R();
+loadFromDB();
+</script></body></html>
